@@ -1,5 +1,5 @@
 TITLE       := PS4 TrophyProbe
-VERSION     := 0.16
+VERSION     := 0.17
 TITLE_ID    := BREW00901
 CONTENT_ID  := IV0000-BREW00901_00-PS4TROPHYPROBE01
 
@@ -30,7 +30,8 @@ CDIR := macos
 endif
 
 RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
-PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(RUNTIME_MODULES)
+TROPHY_FILES := sce_sys/nptitle.dat sce_sys/npbind.dat sce_sys/trophy/trophy00.trp
+PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_FILES) $(RUNTIME_MODULES)
 
 .PHONY: all clean prepare
 all: $(CONTENT_ID).pkg
@@ -75,7 +76,20 @@ sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
 
-prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(RUNTIME_MODULES)
+sce_sys/trophy/.generated: trophy00/TROP.ESFM
+	mkdir -p sce_sys/trophy
+	rm -f npbind.dat nptitle.dat sce_sys/npbind.dat sce_sys/nptitle.dat sce_sys/trophy/trophy00.trp
+	$(TOOLCHAIN)/bin/$(CDIR)/create-trp -CSYS $(TITLE_ID) -PTS trophy00 sce_sys/trophy/trophy00.trp
+	mv npbind.dat sce_sys/npbind.dat
+	mv nptitle.dat sce_sys/nptitle.dat
+	test -s sce_sys/trophy/trophy00.trp
+	test -s sce_sys/npbind.dat
+	test -s sce_sys/nptitle.dat
+	touch $@
+
+$(TROPHY_FILES): sce_sys/trophy/.generated
+
+prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_FILES) $(RUNTIME_MODULES)
 
 pkg.gp4: prepare
 	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$(PACKAGE_FILES)"
