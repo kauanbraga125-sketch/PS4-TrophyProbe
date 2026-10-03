@@ -1,9 +1,9 @@
 TITLE       := PS4 TrophyProbe
-VERSION     := 0.12
+VERSION     := 0.13
 TITLE_ID    := BREW00901
 CONTENT_ID  := IV0000-BREW00901_00-PS4TROPHYPROBE01
 
-LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule
+LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule -lSceMsgDialog -lSceCommonDialog
 
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 PROJDIR     := source
