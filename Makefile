@@ -1,5 +1,5 @@
 TITLE       := PS4 TrophyProbe
-VERSION     := 0.10
+VERSION     := 0.12
 TITLE_ID    := BREW00901
 CONTENT_ID  := IV0000-BREW00901_00-PS4TROPHYPROBE01
 
@@ -29,7 +29,8 @@ LD   ?= /usr/local/opt/llvm/bin/ld.lld
 CDIR := macos
 endif
 
-PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png
+RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
+PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(RUNTIME_MODULES)
 
 .PHONY: all clean prepare
 all: $(CONTENT_ID).pkg
@@ -47,6 +48,14 @@ eboot.bin: $(OBJS)
 sce_sys/about/right.sprx:
 	mkdir -p sce_sys/about
 	cp $(MODULE_DATA)/right.sprx $@
+
+sce_module/libc.prx:
+	mkdir -p sce_module
+	cp $(MODULE_DATA)/libc.prx $@
+
+sce_module/libSceFios2.prx:
+	mkdir -p sce_module
+	cp $(MODULE_DATA)/libSceFios2.prx $@
 
 sce_sys/icon0.png: tools/generate_icon.py
 	mkdir -p sce_sys
@@ -66,7 +75,7 @@ sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
 
-prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png
+prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(RUNTIME_MODULES)
 
 pkg.gp4: prepare
 	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$(PACKAGE_FILES)"
@@ -75,4 +84,4 @@ $(CONTENT_ID).pkg: pkg.gp4
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core pkg_build $< .
 
 clean:
-	rm -rf $(INTDIR) eboot.bin pkg.gp4 $(CONTENT_ID).pkg sce_sys
+	rm -rf $(INTDIR) eboot.bin pkg.gp4 $(CONTENT_ID).pkg sce_sys sce_module
