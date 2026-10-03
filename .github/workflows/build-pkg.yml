@@ -46,6 +46,15 @@ jobs:
           make CCX=clang++-18 LD=ld.lld-18 eboot.bin
           test -s eboot.bin
 
+      - name: Fetch public OpenOrbis trophy sample assets
+        run: |
+          set -euxo pipefail
+          rm -rf .sample-src trophy00
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git .sample-src
+          git -C .sample-src sparse-checkout set samples/trophies/trophy00
+          cp -a .sample-src/samples/trophies/trophy00 ./trophy00
+          test -s trophy00/TROP.ESFM
+
       - name: Package PKG
         run: |
           set -euxo pipefail
@@ -64,14 +73,14 @@ jobs:
               make IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
             '
           test -s IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
-          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.6.pkg
-          sha256sum TrophyProbe-v0.1.6.pkg > TrophyProbe-v0.1.6.pkg.sha256
+          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.7.pkg
+          sha256sum TrophyProbe-v0.1.7.pkg > TrophyProbe-v0.1.7.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrophyProbe-v0.1.6-PS4
+          name: TrophyProbe-v0.1.7-PS4
           path: |
-            TrophyProbe-v0.1.6.pkg
-            TrophyProbe-v0.1.6.pkg.sha256
+            TrophyProbe-v0.1.7.pkg
+            TrophyProbe-v0.1.7.pkg.sha256
           if-no-files-found: error
