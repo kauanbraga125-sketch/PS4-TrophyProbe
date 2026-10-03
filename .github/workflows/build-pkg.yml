@@ -61,17 +61,17 @@ jobs:
               export DEBIAN_FRONTEND=noninteractive
               apt-get update -qq
               apt-get install -y --no-install-recommends make libicu66 libssl1.1 ca-certificates python3
-              make IV0000-BREWTP001_00-PS4TROPHYPROBE01.pkg
+              make IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
             '
-          test -s IV0000-BREWTP001_00-PS4TROPHYPROBE01.pkg
-          cp IV0000-BREWTP001_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.pkg
-          sha256sum TrophyProbe-v0.1.pkg > TrophyProbe-v0.1.pkg.sha256
+          test -s IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
+          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.1.pkg
+          sha256sum TrophyProbe-v0.1.1.pkg > TrophyProbe-v0.1.1.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrophyProbe-v0.1-PS4
+          name: TrophyProbe-v0.1.1-PS4
           path: |
-            TrophyProbe-v0.1.pkg
-            TrophyProbe-v0.1.pkg.sha256
+            TrophyProbe-v0.1.1.pkg
+            TrophyProbe-v0.1.1.pkg.sha256
           if-no-files-found: error
