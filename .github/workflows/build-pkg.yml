@@ -64,14 +64,14 @@ jobs:
               make IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
             '
           test -s IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
-          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.4.pkg
-          sha256sum TrophyProbe-v0.1.4.pkg > TrophyProbe-v0.1.4.pkg.sha256
+          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.5.pkg
+          sha256sum TrophyProbe-v0.1.5.pkg > TrophyProbe-v0.1.5.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrophyProbe-v0.1.4-PS4
+          name: TrophyProbe-v0.1.5-PS4
           path: |
-            TrophyProbe-v0.1.4.pkg
-            TrophyProbe-v0.1.4.pkg.sha256
+            TrophyProbe-v0.1.5.pkg
+            TrophyProbe-v0.1.5.pkg.sha256
           if-no-files-found: error
