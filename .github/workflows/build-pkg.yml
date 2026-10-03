@@ -88,10 +88,7 @@ jobs:
       - name: Validate complete trophy entry set
         run: |
           set -euxo pipefail
-          "$TOOLCHAIN_ROOT/bin/linux/PkgTool.Core" pkg_listentries IV0000-BREW00094_00-TROPHIESEX000000.pkg | tee pkg_entries.txt
-          grep -F "NPTITLE_DAT" pkg_entries.txt
-          grep -F "NPBIND_DAT" pkg_entries.txt
-          grep -F "TROPHY00_TRP" pkg_entries.txt
+          python3 tools/validate_pkg_entries.py IV0000-BREW00094_00-TROPHIESEX000000.pkg
           cp IV0000-BREW00094_00-TROPHIESEX000000.pkg TrophyProbe-v0.1.10.pkg
           sha256sum TrophyProbe-v0.1.10.pkg > TrophyProbe-v0.1.10.pkg.sha256
 
