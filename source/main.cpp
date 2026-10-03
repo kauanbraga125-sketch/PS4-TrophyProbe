@@ -23,6 +23,8 @@
 //   /user/trophy/conf/BREW00094_00-00/TRPPARAM.INI
 // No trophy unlock API is called.
 
+static const char* kTrophyDir = "/user/trophy";
+static const char* kConfRoot = "/user/trophy/conf";
 static const char* kConfDir = "/user/trophy/conf/BREW00094_00-00";
 static const char* kConfTrp = "/user/trophy/conf/BREW00094_00-00/TROPHY.TRP";
 static const char* kConfIni = "/user/trophy/conf/BREW00094_00-00/TRPPARAM.INI";
@@ -104,14 +106,36 @@ static int write_ini(void)
     return (int)n;
 }
 
-static int ensure_conf_dir(void)
+static int ensure_dir(const char* path)
 {
+    struct stat st;
     errno = 0;
-    if (mkdir(kConfDir, 0777) == 0)
+    if (stat(path, &st) == 0)
+    {
+        if (S_ISDIR(st.st_mode))
+            return 0;
+        return -ENOTDIR;
+    }
+
+    errno = 0;
+    if (mkdir(path, 0777) == 0)
         return 0;
     if (errno == EEXIST)
         return 0;
     return -errno;
+}
+
+static int ensure_conf_dir(void)
+{
+    int r = ensure_dir(kTrophyDir);
+    if (r < 0)
+        return r;
+
+    r = ensure_dir(kConfRoot);
+    if (r < 0)
+        return r;
+
+    return ensure_dir(kConfDir);
 }
 
 static int file_size(const char* path)
@@ -136,9 +160,11 @@ int main()
     prep = ensure_conf_dir();
     if (prep < 0)
     {
-        Notify("CONF DIR failed errno=%d", -prep);
+        Notify("CONF DIR chain failed errno=%d", -prep);
         goto end;
     }
+
+    Notify("CONF DIR READY");
 
     prep = copy_file(kPkgTrp, kConfTrp);
     if (prep < 0)
