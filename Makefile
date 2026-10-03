@@ -1,5 +1,5 @@
 TITLE       := OpenOrbis Trophy Conf Control
-VERSION     := 1.01
+VERSION     := 1.02
 TITLE_ID    := BREW00094
 CONTENT_ID  := IV0000-BREW00094_00-TROPHIESEX000000
 
