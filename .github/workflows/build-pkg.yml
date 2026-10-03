@@ -76,17 +76,7 @@ jobs:
               apt-get update -qq
               apt-get install -y --no-install-recommends make libicu66 libssl1.1 ca-certificates python3
               make pkg.gp4
-              python3 - <<"PY"
-from pathlib import Path
-p = Path("pkg.gp4")
-s = p.read_text()
-needle = "\t\t<dir targ_name=\"sce_sys\">\n\t\t\t<dir targ_name=\"about\" />\n\t\t</dir>"
-replacement = "\t\t<dir targ_name=\"sce_sys\">\n\t\t\t<dir targ_name=\"about\" />\n\t\t\t<dir targ_name=\"trophy\" />\n\t\t</dir>"
-if needle not in s:
-    raise SystemExit("sce_sys rootdir anchor not found in generated GP4")
-s = s.replace(needle, replacement, 1)
-p.write_text(s)
-PY
+              python3 tools/patch_gp4.py pkg.gp4
               grep -F "sce_sys/nptitle.dat" pkg.gp4
               grep -F "sce_sys/npbind.dat" pkg.gp4
               grep -F "sce_sys/trophy/trophy00.trp" pkg.gp4
