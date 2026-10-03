@@ -43,8 +43,6 @@ jobs:
         run: |
           set -euxo pipefail
           sed -i 's/BREW00901/BREW00094/g' source/main.cpp Makefile
-          grep -n 'TITLE_ID\|CONTENT_ID' Makefile
-          grep -n 'kTitleId' source/main.cpp
 
       - name: Compile eboot
         run: |
@@ -53,19 +51,17 @@ jobs:
           make CCX=clang++-18 LD=ld.lld-18 eboot.bin
           test -s eboot.bin
 
-      - name: Fetch public OpenOrbis trophy metadata
+      - name: Fetch public OpenOrbis NP metadata
         run: |
           set -euxo pipefail
           rm -rf .sample-src
           git clone --depth 1 --filter=blob:none --sparse https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git .sample-src
           git -C .sample-src sparse-checkout set samples/trophies/sce_sys
-          mkdir -p sce_sys/trophy
+          mkdir -p sce_sys
           cp .sample-src/samples/trophies/sce_sys/nptitle.dat sce_sys/nptitle.dat
           cp .sample-src/samples/trophies/sce_sys/npbind.dat sce_sys/npbind.dat
-          cp .sample-src/samples/trophies/sce_sys/trophy/trophy00.trp sce_sys/trophy/trophy00.trp
           test -s sce_sys/nptitle.dat
           test -s sce_sys/npbind.dat
-          test -s sce_sys/trophy/trophy00.trp
 
       - name: Package PKG
         run: |
