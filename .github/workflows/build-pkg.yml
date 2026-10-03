@@ -44,10 +44,10 @@ jobs:
           set -euxo pipefail
           sed -i 's/BREW00901/BREW00094/g' source/main.cpp Makefile
           sed -i 's/IV0000-BREW00094_00-PS4TROPHYPROBE01/IV0000-BREW00094_00-TROPHIESEX000000/g' Makefile
-          sed -i 's/VERSION     := 0.17/VERSION     := 0.18/' Makefile
-          sed -i 's/v0\.1\.7/v0.1.8/g; s/V0\.1\.7/V0.1.8/g' source/main.cpp
+          sed -i 's/VERSION     := 0.17/VERSION     := 0.19/' Makefile
+          sed -i 's/v0\.1\.7/v0.1.9/g; s/V0\.1\.7/V0.1.9/g' source/main.cpp
           grep -n 'TITLE_ID\|CONTENT_ID\|VERSION' Makefile
-          grep -n 'kTitleId\|v0.1.8\|V0.1.8' source/main.cpp
+          grep -n 'kTitleId\|v0.1.9\|V0.1.9' source/main.cpp
 
       - name: Compile eboot
         run: |
@@ -67,10 +67,55 @@ jobs:
           cp .sample-src/samples/trophies/sce_sys/npbind.dat sce_sys/npbind.dat
           test -s sce_sys/nptitle.dat
           test -s sce_sys/npbind.dat
-          wc -c sce_sys/nptitle.dat sce_sys/npbind.dat
+          test "$(wc -c < sce_sys/nptitle.dat)" -eq 160
+          test "$(wc -c < sce_sys/npbind.dat)" -eq 532
           sha256sum sce_sys/nptitle.dat sce_sys/npbind.dat
 
-      - name: Package PKG
+      - name: Build patched PKG tool
+        run: |
+          set -euxo pipefail
+          rm -rf .liborbispkg .patched-pkgtool
+          git clone https://github.com/maxton/LibOrbisPkg.git .liborbispkg
+          git -C .liborbispkg checkout 643477263b2644e0803e0f58b8726ea4e3f3b7d4
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.liborbispkg/LibOrbisPkg/PKG/PkgBuilder.cs')
+          s = p.read_text(encoding='utf-8-sig')
+
+          old_flags = '''        { EntryId.LICENSE_DAT, 0x80000000 },\n        { EntryId.LICENSE_INFO, 0x80000000 },\n      };'''
+          new_flags = '''        { EntryId.LICENSE_DAT, 0x80000000 },\n        { EntryId.LICENSE_INFO, 0x80000000 },\n        { EntryId.NPTITLE_DAT, 0x80000000 },\n        { EntryId.NPBIND_DAT, 0x80000000 },\n      };'''
+          if old_flags not in s:
+              raise SystemExit('flagMap patch anchor not found')
+          s = s.replace(old_flags, new_flags, 1)
+
+          old_keys = '''        { EntryId.IMAGE_KEY, 3u << 12 },\n        { EntryId.LICENSE_DAT, 3u << 12 },\n        { EntryId.LICENSE_INFO, 2u << 12 },\n      };'''
+          new_keys = '''        { EntryId.IMAGE_KEY, 3u << 12 },\n        { EntryId.LICENSE_DAT, 3u << 12 },\n        { EntryId.LICENSE_INFO, 2u << 12 },\n        { EntryId.NPTITLE_DAT, 3u << 12 },\n        { EntryId.NPBIND_DAT, 3u << 12 },\n      };'''
+          if old_keys not in s:
+              raise SystemExit('keyMap patch anchor not found')
+          s = s.replace(old_keys, new_keys, 1)
+          p.write_text(s, encoding='utf-8')
+
+          for csproj in [
+              Path('.liborbispkg/LibOrbisPkg.Core/LibOrbisPkg.Core.csproj'),
+              Path('.liborbispkg/PkgTool.Core/PkgTool.Core.csproj'),
+          ]:
+              t = csproj.read_text(encoding='utf-8-sig')
+              if '<TargetFramework>netcoreapp3.0</TargetFramework>' not in t:
+                  raise SystemExit(f'target framework anchor not found: {csproj}')
+              t = t.replace('<TargetFramework>netcoreapp3.0</TargetFramework>', '<TargetFramework>net8.0</TargetFramework>', 1)
+              csproj.write_text(t, encoding='utf-8')
+          PY
+
+          grep -n 'NPTITLE_DAT\|NPBIND_DAT' .liborbispkg/LibOrbisPkg/PKG/PkgBuilder.cs
+          dotnet publish .liborbispkg/PkgTool.Core/PkgTool.Core.csproj \
+            -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true \
+            -o .patched-pkgtool
+          test -x .patched-pkgtool/PkgTool.Core || chmod +x .patched-pkgtool/PkgTool.Core
+          .patched-pkgtool/PkgTool.Core --help || true
+
+      - name: Package PKG with patched metadata encryption
         run: |
           set -euxo pipefail
           chmod -R a+rwX "$GITHUB_WORKSPACE"
@@ -89,17 +134,63 @@ jobs:
               grep -F "sce_sys/nptitle.dat" pkg.gp4
               grep -F "sce_sys/npbind.dat" pkg.gp4
               grep -F "IV0000-BREW00094_00-TROPHIESEX000000" pkg.gp4
-              make IV0000-BREW00094_00-TROPHIESEX000000.pkg
+              /work/.patched-pkgtool/PkgTool.Core pkg_build pkg.gp4 .
             '
           test -s IV0000-BREW00094_00-TROPHIESEX000000.pkg
-          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg TrophyProbe-v0.1.8.pkg
-          sha256sum TrophyProbe-v0.1.8.pkg > TrophyProbe-v0.1.8.pkg.sha256
+
+      - name: Validate NP metadata entries
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+
+          pkg_path = Path('IV0000-BREW00094_00-TROPHIESEX000000.pkg')
+          raw = pkg_path.read_bytes()
+          if raw[:4] != b'\x7fCNT':
+              raise SystemExit('not a PS4 CNT package')
+
+          entry_count = struct.unpack_from('>I', raw, 0x10)[0]
+          table_off = struct.unpack_from('>I', raw, 0x18)[0]
+          wanted = {0x402: 'nptitle.dat', 0x403: 'npbind.dat'}
+          found = {}
+
+          for i in range(entry_count):
+              off = table_off + i * 0x20
+              entry_id, name_off, flags1, flags2, data_off, data_size = struct.unpack_from('>IIIIII', raw, off)
+              if entry_id in wanted:
+                  key_index = (flags2 & 0xF000) >> 12
+                  encrypted = bool(flags1 & 0x80000000)
+                  found[entry_id] = (flags1, flags2, data_off, data_size, encrypted, key_index)
+                  print(f'{wanted[entry_id]} id=0x{entry_id:08X} flags1=0x{flags1:08X} flags2=0x{flags2:08X} size={data_size} encrypted={encrypted} key={key_index}')
+
+          for entry_id, name in wanted.items():
+              if entry_id not in found:
+                  raise SystemExit(f'{name}: special PKG entry missing')
+              flags1, flags2, data_off, data_size, encrypted, key_index = found[entry_id]
+              if not encrypted:
+                  raise SystemExit(f'{name}: encrypted flag missing')
+              if key_index != 3:
+                  raise SystemExit(f'{name}: key index is {key_index}, expected 3')
+              source = Path('sce_sys') / name
+              src = source.read_bytes()
+              enc = raw[data_off:data_off+data_size]
+              if len(src) != data_size:
+                  raise SystemExit(f'{name}: size mismatch source={len(src)} package={data_size}')
+              if enc == src:
+                  raise SystemExit(f'{name}: payload was not encrypted')
+
+          print('NP metadata validation PASS: both entries are encrypted with key index 3 and payload differs from plaintext.')
+          PY
+
+          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg TrophyProbe-v0.1.9.pkg
+          sha256sum TrophyProbe-v0.1.9.pkg > TrophyProbe-v0.1.9.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrophyProbe-v0.1.8-PS4
+          name: TrophyProbe-v0.1.9-PS4
           path: |
-            TrophyProbe-v0.1.8.pkg
-            TrophyProbe-v0.1.8.pkg.sha256
+            TrophyProbe-v0.1.9.pkg
+            TrophyProbe-v0.1.9.pkg.sha256
           if-no-files-found: error
