@@ -80,8 +80,9 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('.liborbispkg/LibOrbisPkg/PKG/PkgBuilder.cs')
-          s = p.read_text(encoding='utf-8-sig')
+
+          builder = Path('.liborbispkg/LibOrbisPkg/PKG/PkgBuilder.cs')
+          s = builder.read_text(encoding='utf-8-sig')
 
           old_flags = '''        { EntryId.LICENSE_DAT, 0x80000000 },\n        { EntryId.LICENSE_INFO, 0x80000000 },\n      };'''
           new_flags = '''        { EntryId.LICENSE_DAT, 0x80000000 },\n        { EntryId.LICENSE_INFO, 0x80000000 },\n        { EntryId.NPTITLE_DAT, 0x80000000 },\n        { EntryId.NPBIND_DAT, 0x80000000 },\n      };'''
@@ -94,7 +95,16 @@ jobs:
           if old_keys not in s:
               raise SystemExit('keyMap patch anchor not found')
           s = s.replace(old_keys, new_keys, 1)
-          p.write_text(s, encoding='utf-8')
+          builder.write_text(s, encoding='utf-8')
+
+          entry = Path('.liborbispkg/LibOrbisPkg/PKG/Entry.cs')
+          e = entry.read_text(encoding='utf-8-sig')
+          old_write = '''      var tmp = new byte[Length];\n      using (var ms = new MemoryStream(tmp))\n      {\n        Write(ms);\n      }\n      Crypto.AesCbcCfb128Encrypt(tmp, tmp, tmp.Length, iv_key.Skip(16).Take(16).ToArray(), iv_key.Take(16).ToArray());\n      s.Write(tmp, 0, tmp.Length);'''
+          new_write = '''      var paddedLength = (int)((Length + 15u) & ~15u);\n      var tmp = new byte[paddedLength];\n      using (var ms = new MemoryStream(tmp))\n      {\n        Write(ms);\n      }\n      Crypto.AesCbcCfb128Encrypt(tmp, tmp, tmp.Length, iv_key.Skip(16).Take(16).ToArray(), iv_key.Take(16).ToArray());\n      s.Write(tmp, 0, tmp.Length);'''
+          if old_write not in e:
+              raise SystemExit('WriteEncrypted padding patch anchor not found')
+          e = e.replace(old_write, new_write, 1)
+          entry.write_text(e, encoding='utf-8')
 
           for csproj in [
               Path('.liborbispkg/LibOrbisPkg.Core/LibOrbisPkg.Core.csproj'),
@@ -108,6 +118,7 @@ jobs:
           PY
 
           grep -n 'NPTITLE_DAT\|NPBIND_DAT' .liborbispkg/LibOrbisPkg/PKG/PkgBuilder.cs
+          grep -n 'paddedLength' .liborbispkg/LibOrbisPkg/PKG/Entry.cs
           dotnet publish .liborbispkg/PkgTool.Core/PkgTool.Core.csproj \
             -c Release -r linux-x64 --self-contained true \
             -p:PublishSingleFile=true \
@@ -138,7 +149,7 @@ jobs:
             '
           test -s IV0000-BREW00094_00-TROPHIESEX000000.pkg
 
-      - name: Validate NP metadata entries
+      - name: Validate NP metadata entries and round-trip
         run: |
           set -euxo pipefail
           python3 - <<'PY'
@@ -161,28 +172,40 @@ jobs:
               if entry_id in wanted:
                   key_index = (flags2 & 0xF000) >> 12
                   encrypted = bool(flags1 & 0x80000000)
-                  found[entry_id] = (flags1, flags2, data_off, data_size, encrypted, key_index)
-                  print(f'{wanted[entry_id]} id=0x{entry_id:08X} flags1=0x{flags1:08X} flags2=0x{flags2:08X} size={data_size} encrypted={encrypted} key={key_index}')
+                  found[entry_id] = (i, flags1, flags2, data_off, data_size, encrypted, key_index)
+                  print(f'index={i} {wanted[entry_id]} id=0x{entry_id:08X} flags1=0x{flags1:08X} flags2=0x{flags2:08X} size={data_size} encrypted={encrypted} key={key_index}')
 
           for entry_id, name in wanted.items():
               if entry_id not in found:
                   raise SystemExit(f'{name}: special PKG entry missing')
-              flags1, flags2, data_off, data_size, encrypted, key_index = found[entry_id]
+              idx, flags1, flags2, data_off, data_size, encrypted, key_index = found[entry_id]
               if not encrypted:
                   raise SystemExit(f'{name}: encrypted flag missing')
               if key_index != 3:
                   raise SystemExit(f'{name}: key index is {key_index}, expected 3')
               source = Path('sce_sys') / name
               src = source.read_bytes()
-              enc = raw[data_off:data_off+data_size]
+              physical_size = (data_size + 15) & ~15
+              enc = raw[data_off:data_off+physical_size]
               if len(src) != data_size:
                   raise SystemExit(f'{name}: size mismatch source={len(src)} package={data_size}')
-              if enc == src:
+              if len(enc) != physical_size:
+                  raise SystemExit(f'{name}: encrypted payload truncated')
+              if enc == src + bytes(physical_size - data_size):
                   raise SystemExit(f'{name}: payload was not encrypted')
 
-          print('NP metadata validation PASS: both entries are encrypted with key index 3 and payload differs from plaintext.')
+          Path('.npmeta_indices').write_text(f"{found[0x402][0]} {found[0x403][0]}\n")
+          print('STRUCTURE PASS: both NP entries use encrypted flag, key index 3 and aligned ciphertext.')
           PY
 
+          read NPTITLE_INDEX NPBIND_INDEX < .npmeta_indices
+          .patched-pkgtool/PkgTool.Core pkg_extractentry IV0000-BREW00094_00-TROPHIESEX000000.pkg "$NPTITLE_INDEX" nptitle.roundtrip.dat
+          .patched-pkgtool/PkgTool.Core pkg_extractentry IV0000-BREW00094_00-TROPHIESEX000000.pkg "$NPBIND_INDEX" npbind.roundtrip.dat
+          cmp sce_sys/nptitle.dat nptitle.roundtrip.dat
+          cmp sce_sys/npbind.dat npbind.roundtrip.dat
+          echo 'ROUND-TRIP PASS: encrypted NP metadata decrypts byte-for-byte to the public OpenOrbis sample files.'
+
+          .patched-pkgtool/PkgTool.Core pkg_listentries IV0000-BREW00094_00-TROPHIESEX000000.pkg
           cp IV0000-BREW00094_00-TROPHIESEX000000.pkg TrophyProbe-v0.1.9.pkg
           sha256sum TrophyProbe-v0.1.9.pkg > TrophyProbe-v0.1.9.pkg.sha256
 
