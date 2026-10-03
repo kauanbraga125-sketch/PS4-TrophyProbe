@@ -1,9 +1,9 @@
-TITLE       := PS4 TrophyProbe
-VERSION     := 0.20
+TITLE       := OpenOrbis Trophy Sample
+VERSION     := 1.00
 TITLE_ID    := BREW00094
 CONTENT_ID  := IV0000-BREW00094_00-TROPHIESEX000000
 
-LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule -lSceMsgDialog -lSceCommonDialog
+LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule
 
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 PROJDIR     := source
@@ -29,7 +29,7 @@ LD   ?= /usr/local/opt/llvm/bin/ld.lld
 CDIR := macos
 endif
 
-RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
+RUNTIME_MODULES := sce_module/libc.prx
 TROPHY_META := sce_sys/npbind.dat sce_sys/nptitle.dat sce_sys/trophy/trophy00.trp
 PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
 
@@ -43,8 +43,8 @@ $(INTDIR)/%.o: $(PROJDIR)/%.cpp | $(INTDIR)
 	$(CCX) $(CXXFLAGS) -o $@ $<
 
 eboot.bin: $(OBJS)
-	$(LD) $(OBJS) -o $(INTDIR)/trophyprobe.elf $(LDFLAGS)
-	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/trophyprobe.elf -out=$(INTDIR)/trophyprobe.oelf --eboot "eboot.bin" --paid 0x3800000000000011
+	$(LD) $(OBJS) -o $(INTDIR)/trophy-control.elf $(LDFLAGS)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/trophy-control.elf -out=$(INTDIR)/trophy-control.oelf --eboot "eboot.bin" --paid 0x3800000000000011
 
 sce_sys/about/right.sprx:
 	mkdir -p sce_sys/about
@@ -53,14 +53,6 @@ sce_sys/about/right.sprx:
 sce_module/libc.prx:
 	mkdir -p sce_module
 	cp $(MODULE_DATA)/libc.prx $@
-
-sce_module/libSceFios2.prx:
-	mkdir -p sce_module
-	cp $(MODULE_DATA)/libSceFios2.prx $@
-
-sce_sys/icon0.png: tools/generate_icon.py
-	mkdir -p sce_sys
-	python3 tools/generate_icon.py $@
 
 sce_sys/param.sfo: Makefile
 	mkdir -p sce_sys
