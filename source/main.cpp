@@ -14,6 +14,8 @@ static FILE* g_log = nullptr;
 static char g_results[4096];
 static size_t g_results_len = 0;
 
+static const char* kTitleId = "BREW00901";
+
 static void log_line(const char* fmt, ...)
 {
     char buf[1024];
@@ -78,6 +80,28 @@ static void report(const char* step, int32_t ret)
 {
     log_line("[%s] ret = 0x%08X (%d)", step, (uint32_t)ret, ret);
     append_text("%-18s 0x%08X\n", step, (uint32_t)ret);
+}
+
+static bool probe_file(const char* label, const char* path)
+{
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        log_line("[FILE] MISSING %s -> %s", label, path);
+        append_text("%-15s MISSING\n", label);
+        return false;
+    }
+
+    long size = -1;
+    if (fseek(f, 0, SEEK_END) == 0)
+        size = ftell(f);
+    fclose(f);
+
+    log_line("[FILE] FOUND %s -> %s (size=%ld)", label, path, size);
+    if (size >= 0)
+        append_text("%-15s FOUND (%ld B)\n", label, size);
+    else
+        append_text("%-15s FOUND\n", label);
+    return true;
 }
 
 static inline void common_dialog_set_magic(uint32_t* magic,
@@ -153,9 +177,23 @@ int main()
 
     g_log = fopen("/data/PS4-TrophyProbe.log", "a");
     log_line("==============================");
-    log_line("PS4-TrophyProbe V0.1.3 starting");
+    log_line("PS4-TrophyProbe V0.1.4 starting");
 
-    append_text("PS4 TrophyProbe v0.1.3\n\n");
+    append_text("PS4 TrophyProbe v0.1.4\n");
+    append_text("Title ID: %s\n\n", kTitleId);
+
+    append_text("FILE PROBE\n");
+    probe_file("param.sfo", "/app0/sce_sys/param.sfo");
+    bool has_np_title = probe_file("nptitle.dat", "/app0/sce_sys/nptitle.dat");
+    bool has_np_bind = probe_file("npbind.dat", "/app0/sce_sys/npbind.dat");
+    bool has_trophy_trp = probe_file("trophy00.trp", "/app0/sce_sys/trophy/trophy00.trp");
+    bool has_conf_trp = probe_file("conf TROPHY.TRP", "/user/trophy/conf/BREW00901_00-00/TROPHY.TRP");
+    bool has_conf_ini = probe_file("conf TRPPARAM", "/user/trophy/conf/BREW00901_00-00/TRPPARAM.INI");
+
+    log_line("File summary: nptitle=%d npbind=%d trophy=%d conf_trp=%d conf_ini=%d",
+             has_np_title, has_np_bind, has_trophy_trp, has_conf_trp, has_conf_ini);
+
+    append_text("\nTROPHY API\n");
 
     int32_t ret = 0;
     int32_t user_id = -1;
@@ -212,12 +250,14 @@ int main()
     report("REGISTER_CONTEXT", ret);
     last_step = "REGISTER_CONTEXT";
     if (ret < 0) {
-        append_text("\nSTOP: context registration failed.\n");
+        if ((uint32_t)ret == 0x80550016)
+            append_text("\n0x80550016: NP_TITLE_DAT_NOT_FOUND\n");
+        append_text("STOP: context registration failed.\n");
         goto cleanup;
     }
 
     append_text("\nBASE CONTEXT: OK\n");
-    log_line("V0.1.3 SUCCESS: base trophy context created and registered.");
+    log_line("V0.1.4 SUCCESS: base trophy context created and registered.");
 
 cleanup:
     append_text("\nLast step: %s\n", last_step);
@@ -232,7 +272,7 @@ cleanup:
         log_line("[DESTROY_CONTEXT] ret = 0x%08X (%d)", (uint32_t)r, r);
     }
 
-    log_line("PS4-TrophyProbe V0.1.3 finished");
+    log_line("PS4-TrophyProbe V0.1.4 finished");
     log_line("==============================");
 
     if (g_log) {
