@@ -30,8 +30,8 @@ CDIR := macos
 endif
 
 RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
-TROPHY_FILES := sce_sys/nptitle.dat sce_sys/npbind.dat sce_sys/trophy/trophy00.trp
-PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_FILES) $(RUNTIME_MODULES)
+TROPHY_META := sce_sys/nptitle.dat sce_sys/npbind.dat
+PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
 
 .PHONY: all clean prepare
 all: $(CONTENT_ID).pkg
@@ -76,7 +76,7 @@ sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
 
-prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_FILES) $(RUNTIME_MODULES)
+prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
 
 pkg.gp4: prepare
 	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$(PACKAGE_FILES)"
