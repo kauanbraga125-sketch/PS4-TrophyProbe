@@ -128,7 +128,12 @@ int main()
 
     Notify("OpenOrbis Trophy Conf Control: starting");
 
-    int prep = ensure_conf_dir();
+    int prep = 0;
+    int trpSize = 0;
+    int iniSize = 0;
+    int ret = 0;
+
+    prep = ensure_conf_dir();
     if (prep < 0)
     {
         Notify("CONF DIR failed errno=%d", -prep);
@@ -142,7 +147,7 @@ int main()
         goto end;
     }
 
-    int trpSize = file_size(kConfTrp);
+    trpSize = file_size(kConfTrp);
     if (trpSize <= 0)
     {
         Notify("TROPHY.TRP verify failed %d", trpSize);
@@ -156,7 +161,7 @@ int main()
         goto end;
     }
 
-    int iniSize = file_size(kConfIni);
+    iniSize = file_size(kConfIni);
     if (iniSize <= 0)
     {
         Notify("TRPPARAM.INI verify failed %d", iniSize);
@@ -165,7 +170,7 @@ int main()
 
     Notify("TITLE CONF READY - TRP=%d B INI=%d B", trpSize, iniSize);
 
-    int ret = sceUserServiceInitialize(NULL);
+    ret = sceUserServiceInitialize(NULL);
     if (ret != 0 && (uint32_t)ret != 0x80960003)
     {
         Notify("USER_SERVICE_INIT failed 0x%08X", (uint32_t)ret);
