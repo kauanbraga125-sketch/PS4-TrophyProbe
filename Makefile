@@ -1,7 +1,7 @@
 TITLE       := PS4 TrophyProbe
 VERSION     := 0.10
-TITLE_ID    := BREWTP001
-CONTENT_ID  := IV0000-BREWTP001_00-PS4TROPHYPROBE01
+TITLE_ID    := BREW00901
+CONTENT_ID  := IV0000-BREW00901_00-PS4TROPHYPROBE01
 
 LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule
 
