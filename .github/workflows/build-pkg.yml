@@ -39,10 +39,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends clang-18 lld-18
 
-      - name: Configure known-good OpenOrbis test title
+      - name: Configure exact OpenOrbis trophy sample identity
         run: |
           set -euxo pipefail
           sed -i 's/BREW00901/BREW00094/g' source/main.cpp Makefile
+          sed -i 's/IV0000-BREW00094_00-PS4TROPHYPROBE01/IV0000-BREW00094_00-TROPHIESEX000000/g' Makefile
+          sed -i 's/VERSION     := 0.17/VERSION     := 0.18/' Makefile
+          sed -i 's/v0\.1\.7/v0.1.8/g; s/V0\.1\.7/V0.1.8/g' source/main.cpp
+          grep -n 'TITLE_ID\|CONTENT_ID\|VERSION' Makefile
+          grep -n 'kTitleId\|v0.1.8\|V0.1.8' source/main.cpp
 
       - name: Compile eboot
         run: |
@@ -62,6 +67,8 @@ jobs:
           cp .sample-src/samples/trophies/sce_sys/npbind.dat sce_sys/npbind.dat
           test -s sce_sys/nptitle.dat
           test -s sce_sys/npbind.dat
+          wc -c sce_sys/nptitle.dat sce_sys/npbind.dat
+          sha256sum sce_sys/nptitle.dat sce_sys/npbind.dat
 
       - name: Package PKG
         run: |
@@ -78,17 +85,21 @@ jobs:
               export DEBIAN_FRONTEND=noninteractive
               apt-get update -qq
               apt-get install -y --no-install-recommends make libicu66 libssl1.1 ca-certificates python3
-              make IV0000-BREW00094_00-PS4TROPHYPROBE01.pkg
+              make pkg.gp4
+              grep -F "sce_sys/nptitle.dat" pkg.gp4
+              grep -F "sce_sys/npbind.dat" pkg.gp4
+              grep -F "IV0000-BREW00094_00-TROPHIESEX000000" pkg.gp4
+              make IV0000-BREW00094_00-TROPHIESEX000000.pkg
             '
-          test -s IV0000-BREW00094_00-PS4TROPHYPROBE01.pkg
-          cp IV0000-BREW00094_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.7.pkg
-          sha256sum TrophyProbe-v0.1.7.pkg > TrophyProbe-v0.1.7.pkg.sha256
+          test -s IV0000-BREW00094_00-TROPHIESEX000000.pkg
+          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg TrophyProbe-v0.1.8.pkg
+          sha256sum TrophyProbe-v0.1.8.pkg > TrophyProbe-v0.1.8.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrophyProbe-v0.1.7-PS4
+          name: TrophyProbe-v0.1.8-PS4
           path: |
-            TrophyProbe-v0.1.7.pkg
-            TrophyProbe-v0.1.7.pkg.sha256
+            TrophyProbe-v0.1.8.pkg
+            TrophyProbe-v0.1.8.pkg.sha256
           if-no-files-found: error
