@@ -1,7 +1,7 @@
 TITLE       := PS4 TrophyProbe
-VERSION     := 0.17
-TITLE_ID    := BREW00901
-CONTENT_ID  := IV0000-BREW00901_00-PS4TROPHYPROBE01
+VERSION     := 0.20
+TITLE_ID    := BREW00094
+CONTENT_ID  := IV0000-BREW00094_00-TROPHIESEX000000
 
 LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule -lSceMsgDialog -lSceCommonDialog
 
@@ -30,7 +30,7 @@ CDIR := macos
 endif
 
 RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
-TROPHY_META := sce_sys/nptitle.dat sce_sys/npbind.dat
+TROPHY_META := sce_sys/npbind.dat sce_sys/nptitle.dat sce_sys/trophy/trophy00.trp
 PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
 
 .PHONY: all clean prepare
