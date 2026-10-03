@@ -39,6 +39,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends clang-18 lld-18
 
+      - name: Configure known-good OpenOrbis test title
+        run: |
+          set -euxo pipefail
+          sed -i 's/BREW00901/BREW00094/g' source/main.cpp Makefile
+          grep -n 'TITLE_ID\|CONTENT_ID' Makefile
+          grep -n 'kTitleId' source/main.cpp
+
       - name: Compile eboot
         run: |
           set -euxo pipefail
@@ -46,14 +53,19 @@ jobs:
           make CCX=clang++-18 LD=ld.lld-18 eboot.bin
           test -s eboot.bin
 
-      - name: Fetch public OpenOrbis trophy sample assets
+      - name: Fetch public OpenOrbis trophy metadata
         run: |
           set -euxo pipefail
-          rm -rf .sample-src trophy00
+          rm -rf .sample-src
           git clone --depth 1 --filter=blob:none --sparse https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git .sample-src
-          git -C .sample-src sparse-checkout set samples/trophies/trophy00
-          cp -a .sample-src/samples/trophies/trophy00 ./trophy00
-          test -s trophy00/TROP.ESFM
+          git -C .sample-src sparse-checkout set samples/trophies/sce_sys
+          mkdir -p sce_sys/trophy
+          cp .sample-src/samples/trophies/sce_sys/nptitle.dat sce_sys/nptitle.dat
+          cp .sample-src/samples/trophies/sce_sys/npbind.dat sce_sys/npbind.dat
+          cp .sample-src/samples/trophies/sce_sys/trophy/trophy00.trp sce_sys/trophy/trophy00.trp
+          test -s sce_sys/nptitle.dat
+          test -s sce_sys/npbind.dat
+          test -s sce_sys/trophy/trophy00.trp
 
       - name: Package PKG
         run: |
@@ -70,10 +82,10 @@ jobs:
               export DEBIAN_FRONTEND=noninteractive
               apt-get update -qq
               apt-get install -y --no-install-recommends make libicu66 libssl1.1 ca-certificates python3
-              make IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
+              make IV0000-BREW00094_00-PS4TROPHYPROBE01.pkg
             '
-          test -s IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
-          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.7.pkg
+          test -s IV0000-BREW00094_00-PS4TROPHYPROBE01.pkg
+          cp IV0000-BREW00094_00-PS4TROPHYPROBE01.pkg TrophyProbe-v0.1.7.pkg
           sha256sum TrophyProbe-v0.1.7.pkg > TrophyProbe-v0.1.7.pkg.sha256
 
       - name: Upload PKG artifact
