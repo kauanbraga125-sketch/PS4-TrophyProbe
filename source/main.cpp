@@ -24,26 +24,19 @@ static void log_line(const char* fmt, ...)
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-
     sceKernelDebugOutText(0, buf);
-    if (g_log) {
-        fprintf(g_log, "%s\n", buf);
-        fflush(g_log);
-    }
+    if (g_log) { fprintf(g_log, "%s\n", buf); fflush(g_log); }
 }
 
 static void notify(const char* fmt, ...)
 {
     OrbisNotificationRequest req;
     memset(&req, 0, sizeof(req));
-
     va_list args;
     va_start(args, fmt);
     vsnprintf(req.message, sizeof(req.message), fmt, args);
     va_end(args);
-
     req.type = OrbisNotificationRequestType::NotificationRequest;
-    req.unk3 = 0;
     req.useIconImageUri = 1;
     req.targetId = -1;
     strcpy(req.iconUri, "cxml://psnotification/tex_icon_system");
@@ -52,28 +45,15 @@ static void notify(const char* fmt, ...)
 
 static void append_text(char* out, size_t out_size, size_t* used, const char* fmt, ...)
 {
-    if (!out || !used || *used >= out_size - 1)
-        return;
-
+    if (!out || !used || *used >= out_size - 1) return;
     va_list args;
     va_start(args, fmt);
     int written = vsnprintf(out + *used, out_size - *used, fmt, args);
     va_end(args);
-
-    if (written <= 0)
-        return;
-
+    if (written <= 0) return;
     size_t available = out_size - *used;
     size_t n = (size_t)written;
-    if (n >= available)
-        *used = out_size - 1;
-    else
-        *used += n;
-}
-
-static const char* yn(bool value)
-{
-    return value ? "YES" : "NO";
+    *used = (n >= available) ? out_size - 1 : *used + n;
 }
 
 static bool stat_path(const char* path, long long* size_out, int* err_out)
@@ -81,85 +61,30 @@ static bool stat_path(const char* path, long long* size_out, int* err_out)
     struct stat st;
     errno = 0;
     if (stat(path, &st) == 0) {
-        if (size_out)
-            *size_out = (long long)st.st_size;
-        if (err_out)
-            *err_out = 0;
+        if (size_out) *size_out = (long long)st.st_size;
+        if (err_out) *err_out = 0;
         return true;
     }
-
-    if (size_out)
-        *size_out = -1;
-    if (err_out)
-        *err_out = errno;
+    if (size_out) *size_out = -1;
+    if (err_out) *err_out = errno;
     return false;
 }
 
-static void probe_path(char* out, size_t out_size, size_t* used,
-                       const char* label, const char* path)
+static void probe_path(char* out, size_t out_size, size_t* used, const char* label, const char* path)
 {
     long long size = -1;
     int err = 0;
     bool ok = stat_path(path, &size, &err);
-
     if (ok) {
-        append_text(out, out_size, used, "%-14s FOUND (%lld B)\n", label, size);
+        append_text(out, out_size, used, "%-15s FOUND (%lld B)\n", label, size);
         log_line("[PATH] FOUND %s -> %s (%lld B)", label, path, size);
     } else {
-        append_text(out, out_size, used, "%-14s MISS e=%d\n", label, err);
-        log_line("[PATH] MISSING %s -> %s errno=%d", label, path, err);
+        append_text(out, out_size, used, "%-15s MISS e=%d\n", label, err);
+        log_line("[PATH] MISS %s -> %s errno=%d", label, path, err);
     }
 }
 
-static bool probe_dir(const char* path, int* err_out)
-{
-    errno = 0;
-    DIR* d = opendir(path);
-    if (!d) {
-        if (err_out)
-            *err_out = errno;
-        return false;
-    }
-    closedir(d);
-    if (err_out)
-        *err_out = 0;
-    return true;
-}
-
-static void list_dir(char* out, size_t out_size, size_t* used,
-                     const char* label, const char* path, int max_entries)
-{
-    errno = 0;
-    DIR* d = opendir(path);
-    if (!d) {
-        append_text(out, out_size, used, "%s: CANNOT OPEN (e=%d)\n", label, errno);
-        log_line("[DIR] cannot open %s (%s), errno=%d", label, path, errno);
-        return;
-    }
-
-    append_text(out, out_size, used, "%s:\n", label);
-    log_line("[DIR] listing %s -> %s", label, path);
-
-    int count = 0;
-    struct dirent* ent = nullptr;
-    while ((ent = readdir(d)) != nullptr && count < max_entries) {
-        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
-            continue;
-        append_text(out, out_size, used, "  %s\n", ent->d_name);
-        log_line("[DIR]   %s", ent->d_name);
-        ++count;
-    }
-
-    if (count == 0)
-        append_text(out, out_size, used, "  <empty>\n");
-    else if (ent != nullptr)
-        append_text(out, out_size, used, "  ...\n");
-
-    closedir(d);
-}
-
-static inline void common_dialog_set_magic(uint32_t* magic,
-                                           const OrbisCommonDialogBaseParam* param)
+static inline void common_dialog_set_magic(uint32_t* magic, const OrbisCommonDialogBaseParam* param)
 {
     *magic = (uint32_t)(ORBIS_COMMON_DIALOG_MAGIC_NUMBER + (uint64_t)param);
 }
@@ -181,236 +106,166 @@ static inline void msg_dialog_param_init(OrbisMsgDialogParam* param)
 static bool ensure_dialog_system()
 {
     static bool ready = false;
-    if (ready)
-        return true;
-
+    if (ready) return true;
     int32_t ret = sceSysmoduleLoadModule(ORBIS_SYSMODULE_MESSAGE_DIALOG);
-    log_line("[LOAD_MESSAGE_DIALOG] ret=0x%08X", (uint32_t)ret);
-    if (ret < 0)
-        return false;
-
+    log_line("[LOAD_MESSAGE_DIALOG] 0x%08X", (uint32_t)ret);
+    if (ret < 0) return false;
     ret = sceCommonDialogInitialize();
-    log_line("[COMMON_DIALOG_INIT] ret=0x%08X", (uint32_t)ret);
-    if (ret < 0)
-        return false;
-
+    log_line("[COMMON_DIALOG_INIT] 0x%08X", (uint32_t)ret);
+    if (ret < 0) return false;
     ready = true;
     return true;
 }
 
 static bool show_dialog(const char* message)
 {
-    if (!ensure_dialog_system())
-        return false;
-
+    if (!ensure_dialog_system()) return false;
     int32_t ret = sceMsgDialogInitialize();
-    log_line("[MSG_DIALOG_INIT] ret=0x%08X", (uint32_t)ret);
-    if (ret < 0)
-        return false;
+    if (ret < 0) return false;
 
     OrbisMsgDialogParam param;
     OrbisMsgDialogUserMessageParam user_param;
     OrbisMsgDialogResult result;
-
     msg_dialog_param_init(&param);
     memset(&user_param, 0, sizeof(user_param));
     memset(&result, 0, sizeof(result));
-
     param.mode = ORBIS_MSG_DIALOG_MODE_USER_MSG;
     user_param.msg = message;
     user_param.buttonType = ORBIS_MSG_DIALOG_BUTTON_TYPE_OK;
     param.userMsgParam = &user_param;
 
     ret = sceMsgDialogOpen(&param);
-    log_line("[MSG_DIALOG_OPEN] ret=0x%08X", (uint32_t)ret);
-    if (ret < 0) {
-        sceMsgDialogTerminate();
-        return false;
-    }
-
+    if (ret < 0) { sceMsgDialogTerminate(); return false; }
     while (sceMsgDialogUpdateStatus() != ORBIS_COMMON_DIALOG_STATUS_FINISHED)
         sceKernelUsleep(10000);
-
     sceMsgDialogGetResult(&result);
     sceMsgDialogClose();
     sceMsgDialogTerminate();
     return true;
 }
 
-static void report_api(char* out, size_t out_size, size_t* used,
-                       const char* step, int32_t ret)
+static void report_api(char* out, size_t out_size, size_t* used, const char* step, int32_t ret)
 {
-    append_text(out, out_size, used, "%-18s 0x%08X\n", step, (uint32_t)ret);
-    log_line("[%s] ret=0x%08X (%d)", step, (uint32_t)ret, ret);
+    append_text(out, out_size, used, "%-19s 0x%08X\n", step, (uint32_t)ret);
+    log_line("[%s] 0x%08X (%d)", step, (uint32_t)ret, ret);
 }
 
-static void hold_after_register_failure()
+static void hold_after_failure()
 {
-    log_line("Holding process after REGISTER_CONTEXT failure; skipping trophy cleanup to avoid post-test crash.");
-    if (g_log) {
-        fclose(g_log);
-        g_log = nullptr;
-    }
-
-    for (;;) {
-        sceKernelUsleep(1000000);
-    }
+    log_line("Holding after failure; close app from PS4 menu.");
+    if (g_log) { fclose(g_log); g_log = nullptr; }
+    for (;;) sceKernelUsleep(1000000);
 }
 
 int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
     g_log = fopen("/data/PS4-TrophyProbe.log", "a");
-
     log_line("==============================");
-    log_line("PS4-TrophyProbe V0.1.6 starting");
+    log_line("PS4-TrophyProbe V0.1.7 starting");
 
-    char page1[4096];
-    char page2[4096];
-    memset(page1, 0, sizeof(page1));
-    memset(page2, 0, sizeof(page2));
-    size_t p1 = 0;
-    size_t p2 = 0;
-
-    append_text(page1, sizeof(page1), &p1, "PS4 TrophyProbe v0.1.6\n");
-    append_text(page1, sizeof(page1), &p1, "Title ID: %s\n\n", kTitleId);
-
-    char cwd[512];
-    memset(cwd, 0, sizeof(cwd));
-    if (getcwd(cwd, sizeof(cwd))) {
-        append_text(page1, sizeof(page1), &p1, "CWD: %s\n", cwd);
-        log_line("CWD=%s", cwd);
-    } else {
-        append_text(page1, sizeof(page1), &p1, "CWD: unavailable (e=%d)\n", errno);
-        log_line("getcwd failed errno=%d", errno);
-    }
-
-    const char* sandbox = sceKernelGetFsSandboxRandomWord();
-    append_text(page1, sizeof(page1), &p1, "Sandbox: %s\n\n",
-                (sandbox && sandbox[0]) ? sandbox : "<none>");
-    log_line("Sandbox word=%s", sandbox ? sandbox : "<null>");
-
-    int e_app0 = 0, e_sys = 0, e_module = 0;
-    bool d_app0 = probe_dir("/app0", &e_app0);
-    bool d_sys = probe_dir("/app0/sce_sys", &e_sys);
-    bool d_module = probe_dir("/app0/sce_module", &e_module);
-
-    append_text(page1, sizeof(page1), &p1, "MOUNTS\n");
-    append_text(page1, sizeof(page1), &p1, "/app0              %s (e=%d)\n", yn(d_app0), e_app0);
-    append_text(page1, sizeof(page1), &p1, "/app0/sce_sys      %s (e=%d)\n", yn(d_sys), e_sys);
-    append_text(page1, sizeof(page1), &p1, "/app0/sce_module   %s (e=%d)\n\n", yn(d_module), e_module);
-
-    append_text(page1, sizeof(page1), &p1, "CONTROL FILES\n");
-    probe_path(page1, sizeof(page1), &p1, "eboot.bin", "/app0/eboot.bin");
-    probe_path(page1, sizeof(page1), &p1, "libc.prx", "/app0/sce_module/libc.prx");
-    probe_path(page1, sizeof(page1), &p1, "Fios2.prx", "/app0/sce_module/libSceFios2.prx");
-
-    append_text(page1, sizeof(page1), &p1, "\nSCE_SYS TESTS\n");
-    probe_path(page1, sizeof(page1), &p1, "param.sfo", "/app0/sce_sys/param.sfo");
-    probe_path(page1, sizeof(page1), &p1, "icon0.png", "/app0/sce_sys/icon0.png");
-    probe_path(page1, sizeof(page1), &p1, "right.sprx", "/app0/sce_sys/about/right.sprx");
-    probe_path(page1, sizeof(page1), &p1, "nptitle.dat", "/app0/sce_sys/nptitle.dat");
-    probe_path(page1, sizeof(page1), &p1, "npbind.dat", "/app0/sce_sys/npbind.dat");
-
-    append_text(page2, sizeof(page2), &p2, "PS4 TrophyProbe v0.1.6 - DIRS\n\n");
-    list_dir(page2, sizeof(page2), &p2, "/app0", "/app0", 12);
-    append_text(page2, sizeof(page2), &p2, "\n");
-    list_dir(page2, sizeof(page2), &p2, "/app0/sce_sys", "/app0/sce_sys", 12);
-
-    if (!show_dialog(page1))
-        notify("TrophyProbe: mount diagnostics dialog failed");
-    if (!show_dialog(page2))
-        notify("TrophyProbe: directory diagnostics dialog failed");
+    char files[4096];
+    memset(files, 0, sizeof(files));
+    size_t pf = 0;
+    append_text(files, sizeof(files), &pf, "PS4 TrophyProbe v0.1.7 - FILES\nTitle ID: %s\n\n", kTitleId);
+    probe_path(files, sizeof(files), &pf, "eboot.bin", "/app0/eboot.bin");
+    probe_path(files, sizeof(files), &pf, "param.sfo", "/app0/sce_sys/param.sfo");
+    probe_path(files, sizeof(files), &pf, "nptitle.dat", "/app0/sce_sys/nptitle.dat");
+    probe_path(files, sizeof(files), &pf, "npbind.dat", "/app0/sce_sys/npbind.dat");
+    probe_path(files, sizeof(files), &pf, "trophy00.trp", "/app0/sce_sys/trophy/trophy00.trp");
+    probe_path(files, sizeof(files), &pf, "libc.prx", "/app0/sce_module/libc.prx");
+    probe_path(files, sizeof(files), &pf, "Fios2.prx", "/app0/sce_module/libSceFios2.prx");
+    if (!show_dialog(files)) notify("TrophyProbe: files dialog failed");
 
     char api[4096];
     memset(api, 0, sizeof(api));
     size_t pa = 0;
-    append_text(api, sizeof(api), &pa, "PS4 TrophyProbe v0.1.6 - TROPHY API\n\n");
+    append_text(api, sizeof(api), &pa, "PS4 TrophyProbe v0.1.7 - API\n\n");
 
     int32_t ret = 0;
     int32_t user_id = -1;
     int32_t trophy_context = -1;
     int32_t trophy_handle = -1;
-    const char* last_step = "START";
 
     ret = sceUserServiceInitialize(nullptr);
     report_api(api, sizeof(api), &pa, "USER_SERVICE_INIT", ret);
-    last_step = "USER_SERVICE_INIT";
-    if (ret != 0 && (uint32_t)ret != 0x80960003) {
-        append_text(api, sizeof(api), &pa, "\nSTOP: user service init failed.\n");
-        goto cleanup;
-    }
+    if (ret != 0 && (uint32_t)ret != 0x80960003) goto fatal;
 
     ret = sceUserServiceGetInitialUser(&user_id);
     report_api(api, sizeof(api), &pa, "GET_INITIAL_USER", ret);
-    last_step = "GET_INITIAL_USER";
-    if (ret != 0) {
-        append_text(api, sizeof(api), &pa, "\nSTOP: initial user unavailable.\n");
-        goto cleanup;
-    }
+    if (ret != 0) goto fatal;
 
     ret = sceSysmoduleLoadModule(ORBIS_SYSMODULE_NP_TROPHY);
     report_api(api, sizeof(api), &pa, "LOAD_NP_TROPHY", ret);
-    last_step = "LOAD_NP_TROPHY";
-    if (ret != 0) {
-        append_text(api, sizeof(api), &pa, "\nSTOP: NP Trophy module failed.\n");
-        goto cleanup;
-    }
+    if (ret != 0) goto fatal;
 
     ret = sceNpTrophyCreateContext(&trophy_context, user_id, 0, 0);
     report_api(api, sizeof(api), &pa, "CREATE_CONTEXT", ret);
-    last_step = "CREATE_CONTEXT";
-    if (ret < 0) {
-        append_text(api, sizeof(api), &pa, "\nSTOP: trophy context failed.\n");
-        goto cleanup;
-    }
+    if (ret < 0) goto fatal;
 
     ret = sceNpTrophyCreateHandle(&trophy_handle);
     report_api(api, sizeof(api), &pa, "CREATE_HANDLE", ret);
-    last_step = "CREATE_HANDLE";
-    if (ret < 0) {
-        append_text(api, sizeof(api), &pa, "\nSTOP: trophy handle failed.\n");
-        goto cleanup;
-    }
+    if (ret < 0) goto fatal;
 
     ret = sceNpTrophyRegisterContext(trophy_context, trophy_handle, 0);
     report_api(api, sizeof(api), &pa, "REGISTER_CONTEXT", ret);
-    last_step = "REGISTER_CONTEXT";
     if (ret < 0) {
         if ((uint32_t)ret == 0x80550016)
             append_text(api, sizeof(api), &pa, "\n0x80550016: NP_TITLE_DAT_NOT_FOUND\n");
-        append_text(api, sizeof(api), &pa,
-                    "STOP: context registration failed.\n"
-                    "Cleanup skipped intentionally.\n"
-                    "Close the app from the PS4 menu after OK.\n");
-        append_text(api, sizeof(api), &pa, "\nLast step: %s\n", last_step);
-
-        if (!show_dialog(api))
-            notify("TrophyProbe: Trophy API dialog failed");
-
-        hold_after_register_failure();
+        append_text(api, sizeof(api), &pa, "\nSTOP: registration failed.\nClose app after OK.\n");
+        show_dialog(api);
+        hold_after_failure();
     }
 
-    append_text(api, sizeof(api), &pa, "\nBASE CONTEXT: OK\n");
+    append_text(api, sizeof(api), &pa, "\nREGISTERED CONTEXT: OK\nNext: read-only trophy probes.\n");
+    show_dialog(api);
 
-cleanup:
-    append_text(api, sizeof(api), &pa, "\nLast step: %s\n", last_step);
+    {
+        char info[8192];
+        memset(info, 0, sizeof(info));
+        size_t pi = 0;
+        append_text(info, sizeof(info), &pi, "v0.1.7 - TROPHY INFO (read-only)\n\n");
+        int valid = 0;
+        for (int id = 0; id < 16; ++id) {
+            OrbisNpTrophyDetails details;
+            OrbisNpTrophyData data;
+            memset(&details, 0, sizeof(details));
+            memset(&data, 0, sizeof(data));
+            details.size = sizeof(details);
+            data.size = sizeof(data);
+            int32_t ir = sceNpTrophyGetTrophyInfo(trophy_context, trophy_handle, id, &details, &data);
+            if (ir >= 0) {
+                ++valid;
+                append_text(info, sizeof(info), &pi, "ID %02d OK  unlocked=%d  %s\n", id, data.IsUnlocked ? 1 : 0, details.TrophyName);
+                log_line("[TROPHY_INFO %d] OK name='%s' unlocked=%d", id, details.TrophyName, data.IsUnlocked ? 1 : 0);
+            } else {
+                append_text(info, sizeof(info), &pi, "ID %02d 0x%08X\n", id, (uint32_t)ir);
+                log_line("[TROPHY_INFO %d] 0x%08X", id, (uint32_t)ir);
+            }
+        }
+        append_text(info, sizeof(info), &pi, "\nValid trophy records: %d\n", valid);
 
-    if (trophy_handle >= 0)
-        sceNpTrophyDestroyHandle(trophy_handle);
-    if (trophy_context >= 0)
-        sceNpTrophyDestroyContext(trophy_context);
-
-    if (!show_dialog(api))
-        notify("TrophyProbe: Trophy API dialog failed");
-
-    log_line("PS4-TrophyProbe V0.1.6 finished");
-    log_line("==============================");
-
-    if (g_log) {
-        fclose(g_log);
-        g_log = nullptr;
+        char cache1[256];
+        char cache2[256];
+        snprintf(cache1, sizeof(cache1), "/user/trophy/conf/%s_00-00/TROPHY.TRP", kTitleId);
+        snprintf(cache2, sizeof(cache2), "/user/trophy/conf/%s_00-00/TRPPARAM.INI", kTitleId);
+        append_text(info, sizeof(info), &pi, "\nLOCAL CACHE PROBE\n");
+        probe_path(info, sizeof(info), &pi, "TROPHY.TRP", cache1);
+        probe_path(info, sizeof(info), &pi, "TRPPARAM.INI", cache2);
+        show_dialog(info);
     }
 
+    if (trophy_handle >= 0) sceNpTrophyDestroyHandle(trophy_handle);
+    if (trophy_context >= 0) sceNpTrophyDestroyContext(trophy_context);
+    log_line("PS4-TrophyProbe V0.1.7 finished OK");
+    if (g_log) { fclose(g_log); g_log = nullptr; }
+    return 0;
+
+fatal:
+    append_text(api, sizeof(api), &pa, "\nSTOP: pre-registration stage failed.\n");
+    show_dialog(api);
+    if (trophy_handle >= 0) sceNpTrophyDestroyHandle(trophy_handle);
+    if (trophy_context >= 0) sceNpTrophyDestroyContext(trophy_context);
+    if (g_log) { fclose(g_log); g_log = nullptr; }
     return 0;
 }
