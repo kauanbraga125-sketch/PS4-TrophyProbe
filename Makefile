@@ -29,7 +29,7 @@ LD   ?= /usr/local/opt/llvm/bin/ld.lld
 CDIR := macos
 endif
 
-RUNTIME_MODULES := sce_module/libc.prx
+RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
 TROPHY_META := sce_sys/npbind.dat sce_sys/nptitle.dat sce_sys/trophy/trophy00.trp
 PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
 
@@ -53,6 +53,10 @@ sce_sys/about/right.sprx:
 sce_module/libc.prx:
 	mkdir -p sce_module
 	cp $(MODULE_DATA)/libc.prx $@
+
+sce_module/libSceFios2.prx:
+	mkdir -p sce_module
+	cp $(MODULE_DATA)/libSceFios2.prx $@
 
 sce_sys/param.sfo: Makefile
 	mkdir -p sce_sys
