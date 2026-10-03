@@ -15,7 +15,7 @@
 #include <orbis/MsgDialog.h>
 
 static FILE* g_log = nullptr;
-static const char* kTitleId = "BREW00901";
+static const char* kTitleId = "BREW00094";
 
 static void log_line(const char* fmt, ...)
 {
@@ -162,12 +162,12 @@ int main()
     setvbuf(stdout, nullptr, _IONBF, 0);
     g_log = fopen("/data/PS4-TrophyProbe.log", "a");
     log_line("==============================");
-    log_line("PS4-TrophyProbe V0.1.7 starting");
+    log_line("PS4-TrophyProbe V0.1.10 starting");
 
     char files[4096];
     memset(files, 0, sizeof(files));
     size_t pf = 0;
-    append_text(files, sizeof(files), &pf, "PS4 TrophyProbe v0.1.7 - FILES\nTitle ID: %s\n\n", kTitleId);
+    append_text(files, sizeof(files), &pf, "PS4 TrophyProbe v0.1.10 - FILES\nTitle ID: %s\n\n", kTitleId);
     probe_path(files, sizeof(files), &pf, "eboot.bin", "/app0/eboot.bin");
     probe_path(files, sizeof(files), &pf, "param.sfo", "/app0/sce_sys/param.sfo");
     probe_path(files, sizeof(files), &pf, "nptitle.dat", "/app0/sce_sys/nptitle.dat");
@@ -180,7 +180,7 @@ int main()
     char api[4096];
     memset(api, 0, sizeof(api));
     size_t pa = 0;
-    append_text(api, sizeof(api), &pa, "PS4 TrophyProbe v0.1.7 - API\n\n");
+    append_text(api, sizeof(api), &pa, "PS4 TrophyProbe v0.1.10 - API\n\n");
 
     int32_t ret = 0;
     int32_t user_id = -1;
@@ -224,7 +224,7 @@ int main()
         char info[8192];
         memset(info, 0, sizeof(info));
         size_t pi = 0;
-        append_text(info, sizeof(info), &pi, "v0.1.7 - TROPHY INFO (read-only)\n\n");
+        append_text(info, sizeof(info), &pi, "v0.1.10 - TROPHY INFO (read-only)\n\n");
         int valid = 0;
         for (int id = 0; id < 16; ++id) {
             OrbisNpTrophyDetails details;
@@ -257,7 +257,7 @@ int main()
 
     if (trophy_handle >= 0) sceNpTrophyDestroyHandle(trophy_handle);
     if (trophy_context >= 0) sceNpTrophyDestroyContext(trophy_context);
-    log_line("PS4-TrophyProbe V0.1.7 finished OK");
+    log_line("PS4-TrophyProbe V0.1.10 finished OK");
     if (g_log) { fclose(g_log); g_log = nullptr; }
     return 0;
 
