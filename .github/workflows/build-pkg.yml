@@ -91,15 +91,15 @@ jobs:
         run: |
           set -euxo pipefail
           python3 tools/validate_pkg_entries.py IV0000-BREW00094_00-TROPHIESEX000000.pkg
-          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg OpenOrbis-Trophy-Conf-Control.pkg
-          sha256sum OpenOrbis-Trophy-Conf-Control.pkg > OpenOrbis-Trophy-Conf-Control.pkg.sha256
+          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg OpenOrbis-Trophy-Conf-Control-v2.pkg
+          sha256sum OpenOrbis-Trophy-Conf-Control-v2.pkg > OpenOrbis-Trophy-Conf-Control-v2.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenOrbis-Trophy-Conf-Control-PS4
+          name: OpenOrbis-Trophy-Conf-Control-v2-PS4
           path: |
-            OpenOrbis-Trophy-Conf-Control.pkg
-            OpenOrbis-Trophy-Conf-Control.pkg.sha256
+            OpenOrbis-Trophy-Conf-Control-v2.pkg
+            OpenOrbis-Trophy-Conf-Control-v2.pkg.sha256
             pkg_entries.txt
           if-no-files-found: error
