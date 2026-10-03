@@ -244,13 +244,26 @@ static void report_api(char* out, size_t out_size, size_t* used,
     log_line("[%s] ret=0x%08X (%d)", step, (uint32_t)ret, ret);
 }
 
+static void hold_after_register_failure()
+{
+    log_line("Holding process after REGISTER_CONTEXT failure; skipping trophy cleanup to avoid post-test crash.");
+    if (g_log) {
+        fclose(g_log);
+        g_log = nullptr;
+    }
+
+    for (;;) {
+        sceKernelUsleep(1000000);
+    }
+}
+
 int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
     g_log = fopen("/data/PS4-TrophyProbe.log", "a");
 
     log_line("==============================");
-    log_line("PS4-TrophyProbe V0.1.5 starting");
+    log_line("PS4-TrophyProbe V0.1.6 starting");
 
     char page1[4096];
     char page2[4096];
@@ -259,7 +272,7 @@ int main()
     size_t p1 = 0;
     size_t p2 = 0;
 
-    append_text(page1, sizeof(page1), &p1, "PS4 TrophyProbe v0.1.5\n");
+    append_text(page1, sizeof(page1), &p1, "PS4 TrophyProbe v0.1.6\n");
     append_text(page1, sizeof(page1), &p1, "Title ID: %s\n\n", kTitleId);
 
     char cwd[512];
@@ -299,7 +312,7 @@ int main()
     probe_path(page1, sizeof(page1), &p1, "nptitle.dat", "/app0/sce_sys/nptitle.dat");
     probe_path(page1, sizeof(page1), &p1, "npbind.dat", "/app0/sce_sys/npbind.dat");
 
-    append_text(page2, sizeof(page2), &p2, "PS4 TrophyProbe v0.1.5 - DIRS\n\n");
+    append_text(page2, sizeof(page2), &p2, "PS4 TrophyProbe v0.1.6 - DIRS\n\n");
     list_dir(page2, sizeof(page2), &p2, "/app0", "/app0", 12);
     append_text(page2, sizeof(page2), &p2, "\n");
     list_dir(page2, sizeof(page2), &p2, "/app0/sce_sys", "/app0/sce_sys", 12);
@@ -312,7 +325,7 @@ int main()
     char api[4096];
     memset(api, 0, sizeof(api));
     size_t pa = 0;
-    append_text(api, sizeof(api), &pa, "PS4 TrophyProbe v0.1.5 - TROPHY API\n\n");
+    append_text(api, sizeof(api), &pa, "PS4 TrophyProbe v0.1.6 - TROPHY API\n\n");
 
     int32_t ret = 0;
     int32_t user_id = -1;
@@ -366,8 +379,16 @@ int main()
     if (ret < 0) {
         if ((uint32_t)ret == 0x80550016)
             append_text(api, sizeof(api), &pa, "\n0x80550016: NP_TITLE_DAT_NOT_FOUND\n");
-        append_text(api, sizeof(api), &pa, "STOP: context registration failed.\n");
-        goto cleanup;
+        append_text(api, sizeof(api), &pa,
+                    "STOP: context registration failed.\n"
+                    "Cleanup skipped intentionally.\n"
+                    "Close the app from the PS4 menu after OK.\n");
+        append_text(api, sizeof(api), &pa, "\nLast step: %s\n", last_step);
+
+        if (!show_dialog(api))
+            notify("TrophyProbe: Trophy API dialog failed");
+
+        hold_after_register_failure();
     }
 
     append_text(api, sizeof(api), &pa, "\nBASE CONTEXT: OK\n");
@@ -383,7 +404,7 @@ cleanup:
     if (!show_dialog(api))
         notify("TrophyProbe: Trophy API dialog failed");
 
-    log_line("PS4-TrophyProbe V0.1.5 finished");
+    log_line("PS4-TrophyProbe V0.1.6 finished");
     log_line("==============================");
 
     if (g_log) {
