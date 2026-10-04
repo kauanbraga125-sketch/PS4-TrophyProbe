@@ -1,5 +1,5 @@
-TITLE       := OpenOrbis Trophy Conf Control
-VERSION     := 1.02
+TITLE       := OpenOrbis Trophy Read Probe
+VERSION     := 1.03
 TITLE_ID    := BREW00094
 CONTENT_ID  := IV0000-BREW00094_00-TROPHIESEX000000
 
@@ -43,8 +43,8 @@ $(INTDIR)/%.o: $(PROJDIR)/%.cpp | $(INTDIR)
 	$(CCX) $(CXXFLAGS) -o $@ $<
 
 eboot.bin: $(OBJS)
-	$(LD) $(OBJS) -o $(INTDIR)/trophy-conf-control.elf $(LDFLAGS)
-	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/trophy-conf-control.elf -out=$(INTDIR)/trophy-conf-control.oelf --eboot "eboot.bin" --paid 0x3800000000000011
+	$(LD) $(OBJS) -o $(INTDIR)/trophy-read-probe.elf $(LDFLAGS)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/trophy-read-probe.elf -out=$(INTDIR)/trophy-read-probe.oelf --eboot "eboot.bin" --paid 0x3800000000000011
 
 sce_sys/about/right.sprx:
 	mkdir -p sce_sys/about
