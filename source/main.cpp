@@ -43,6 +43,8 @@ int main()
     notify_and_wait("OpenOrbis Trophy Read Probe: starting");
 
     int ret = 0;
+    int okCount = 0;
+    uint32_t firstError = 0;
 
     ret = sceUserServiceInitialize(NULL);
     if (ret != 0 && (uint32_t)ret != 0x80960003)
@@ -84,9 +86,6 @@ int main()
 
     notify_and_wait("REGISTER_CONTEXT 0x00000000 - PASS");
     notify_and_wait("READ TEST: querying trophy IDs 0-15");
-
-    int okCount = 0;
-    uint32_t firstError = 0;
 
     for (int id = 0; id < 16; ++id)
     {
