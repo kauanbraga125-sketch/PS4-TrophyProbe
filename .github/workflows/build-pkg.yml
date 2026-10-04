@@ -1,4 +1,4 @@
-name: Build OpenOrbis Trophy Conf Control PKG
+name: Build OpenOrbis Trophy Read Probe PKG
 
 on:
   push:
@@ -53,9 +53,8 @@ jobs:
           test "$(wc -c < sce_sys/nptitle.dat)" -eq 160
           test "$(wc -c < sce_sys/npbind.dat)" -eq 532
           test -s sce_sys/trophy/trophy00.trp
-          sha256sum sce_sys/icon0.png sce_sys/nptitle.dat sce_sys/npbind.dat sce_sys/trophy/trophy00.trp
 
-      - name: Compile control eboot
+      - name: Compile read probe
         run: |
           set -euxo pipefail
           export OO_PS4_TOOLCHAIN="$TOOLCHAIN_ROOT"
@@ -87,19 +86,19 @@ jobs:
             '
           test -s IV0000-BREW00094_00-TROPHIESEX000000.pkg
 
-      - name: Validate control package
+      - name: Validate read probe package
         run: |
           set -euxo pipefail
           python3 tools/validate_pkg_entries.py IV0000-BREW00094_00-TROPHIESEX000000.pkg
-          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg OpenOrbis-Trophy-Conf-Control-v2.pkg
-          sha256sum OpenOrbis-Trophy-Conf-Control-v2.pkg > OpenOrbis-Trophy-Conf-Control-v2.pkg.sha256
+          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg OpenOrbis-Trophy-Read-Probe.pkg
+          sha256sum OpenOrbis-Trophy-Read-Probe.pkg > OpenOrbis-Trophy-Read-Probe.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenOrbis-Trophy-Conf-Control-v2-PS4
+          name: OpenOrbis-Trophy-Read-Probe-PS4
           path: |
-            OpenOrbis-Trophy-Conf-Control-v2.pkg
-            OpenOrbis-Trophy-Conf-Control-v2.pkg.sha256
+            OpenOrbis-Trophy-Read-Probe.pkg
+            OpenOrbis-Trophy-Read-Probe.pkg.sha256
             pkg_entries.txt
           if-no-files-found: error
