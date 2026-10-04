@@ -5,8 +5,6 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
-#include <errno.h>
-#include <sys/stat.h>
 
 #include <orbis/libkernel.h>
 #include <orbis/Sysmodule.h>
@@ -15,186 +13,36 @@
 
 #include "util.h"
 
-// OpenOrbis trophy registration control.
-// Uses only the public BREW00094 sample data.
-// Before RegisterContext it installs the sample Title Conf expected by
-// the OpenOrbis README:
-//   /user/trophy/conf/BREW00094_00-00/TROPHY.TRP
-//   /user/trophy/conf/BREW00094_00-00/TRPPARAM.INI
-// No trophy unlock API is called.
-
-static const char* kTrophyDir = "/user/trophy";
-static const char* kConfRoot = "/user/trophy/conf";
-static const char* kConfDir = "/user/trophy/conf/BREW00094_00-00";
-static const char* kConfTrp = "/user/trophy/conf/BREW00094_00-00/TROPHY.TRP";
-static const char* kConfIni = "/user/trophy/conf/BREW00094_00-00/TRPPARAM.INI";
-static const char* kPkgTrp  = "/app0/sce_sys/trophy/trophy00.trp";
-
-static const char kTrpParam[] =
-    "TROPSYSVER=1.0\n"
-    "TROPTITLEID=BREW00094_00-00\n"
-    "TROPAPPVER=1.0\n";
+// Read-only OpenOrbis trophy probe.
+// Requires the public BREW00094 Title Conf already present in:
+// /user/trophy/conf/BREW00094_00-00/
+// This build never calls sceNpTrophyUnlockTrophy.
 
 int32_t UserID = 0;
 int32_t NPContext = 0;
 int32_t NPHandle = 0;
 
-static int copy_file(const char* src, const char* dst)
+static void notify_and_wait(const char* fmt, ...)
 {
-    FILE* in = fopen(src, "rb");
-    if (!in)
-        return -errno;
+    char msg[900];
+    memset(msg, 0, sizeof(msg));
 
-    FILE* out = fopen(dst, "wb");
-    if (!out)
-    {
-        int e = errno;
-        fclose(in);
-        return -e;
-    }
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, args);
+    va_end(args);
 
-    char buf[16384];
-    size_t total = 0;
-    for (;;)
-    {
-        size_t n = fread(buf, 1, sizeof(buf), in);
-        if (n > 0)
-        {
-            if (fwrite(buf, 1, n, out) != n)
-            {
-                int e = errno ? errno : EIO;
-                fclose(out);
-                fclose(in);
-                return -e;
-            }
-            total += n;
-        }
-
-        if (n < sizeof(buf))
-        {
-            if (ferror(in))
-            {
-                int e = errno ? errno : EIO;
-                fclose(out);
-                fclose(in);
-                return -e;
-            }
-            break;
-        }
-    }
-
-    fflush(out);
-    fclose(out);
-    fclose(in);
-    return (int)total;
-}
-
-static int write_ini(void)
-{
-    FILE* f = fopen(kConfIni, "wb");
-    if (!f)
-        return -errno;
-
-    const size_t len = sizeof(kTrpParam) - 1;
-    size_t n = fwrite(kTrpParam, 1, len, f);
-    fflush(f);
-    fclose(f);
-
-    if (n != len)
-        return -(errno ? errno : EIO);
-
-    return (int)n;
-}
-
-static int ensure_dir(const char* path)
-{
-    struct stat st;
-    errno = 0;
-    if (stat(path, &st) == 0)
-    {
-        if (S_ISDIR(st.st_mode))
-            return 0;
-        return -ENOTDIR;
-    }
-
-    errno = 0;
-    if (mkdir(path, 0777) == 0)
-        return 0;
-    if (errno == EEXIST)
-        return 0;
-    return -errno;
-}
-
-static int ensure_conf_dir(void)
-{
-    int r = ensure_dir(kTrophyDir);
-    if (r < 0)
-        return r;
-
-    r = ensure_dir(kConfRoot);
-    if (r < 0)
-        return r;
-
-    return ensure_dir(kConfDir);
-}
-
-static int file_size(const char* path)
-{
-    struct stat st;
-    if (stat(path, &st) != 0)
-        return -errno;
-    return (int)st.st_size;
+    Notify("%s", msg);
+    sceKernelUsleep(350000);
 }
 
 int main()
 {
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    Notify("OpenOrbis Trophy Conf Control: starting");
+    notify_and_wait("OpenOrbis Trophy Read Probe: starting");
 
-    int prep = 0;
-    int trpSize = 0;
-    int iniSize = 0;
     int ret = 0;
-
-    prep = ensure_conf_dir();
-    if (prep < 0)
-    {
-        Notify("CONF DIR chain failed errno=%d", -prep);
-        goto end;
-    }
-
-    Notify("CONF DIR READY");
-
-    prep = copy_file(kPkgTrp, kConfTrp);
-    if (prep < 0)
-    {
-        Notify("TROPHY.TRP copy failed errno=%d", -prep);
-        goto end;
-    }
-
-    trpSize = file_size(kConfTrp);
-    if (trpSize <= 0)
-    {
-        Notify("TROPHY.TRP verify failed %d", trpSize);
-        goto end;
-    }
-
-    prep = write_ini();
-    if (prep < 0)
-    {
-        Notify("TRPPARAM.INI write failed errno=%d", -prep);
-        goto end;
-    }
-
-    iniSize = file_size(kConfIni);
-    if (iniSize <= 0)
-    {
-        Notify("TRPPARAM.INI verify failed %d", iniSize);
-        goto end;
-    }
-
-    Notify("TITLE CONF READY - TRP=%d B INI=%d B", trpSize, iniSize);
 
     ret = sceUserServiceInitialize(NULL);
     if (ret != 0 && (uint32_t)ret != 0x80960003)
@@ -234,7 +82,67 @@ int main()
         goto end;
     }
 
-    Notify("REGISTER_CONTEXT 0x00000000 - TITLE CONF PASS");
+    notify_and_wait("REGISTER_CONTEXT 0x00000000 - PASS");
+    notify_and_wait("READ TEST: querying trophy IDs 0-15");
+
+    int okCount = 0;
+    uint32_t firstError = 0;
+
+    for (int id = 0; id < 16; ++id)
+    {
+        OrbisNpTrophyDetails details;
+        OrbisNpTrophyData data;
+
+        memset(&details, 0, sizeof(details));
+        memset(&data, 0, sizeof(data));
+
+        details.size = sizeof(details);
+        data.size = sizeof(data);
+
+        ret = sceNpTrophyGetTrophyInfo(
+            NPContext,
+            NPHandle,
+            id,
+            &details,
+            &data
+        );
+
+        if (ret == 0)
+        {
+            ++okCount;
+
+            char safeName[81];
+            memset(safeName, 0, sizeof(safeName));
+            strncpy(safeName, details.TrophyName, sizeof(safeName) - 1);
+
+            notify_and_wait(
+                "TROPHY %02d OK | unlocked=%d | %s",
+                id,
+                data.IsUnlocked ? 1 : 0,
+                safeName[0] ? safeName : "(no name)"
+            );
+        }
+        else if (firstError == 0)
+        {
+            firstError = (uint32_t)ret;
+        }
+    }
+
+    if (okCount > 0)
+    {
+        Notify(
+            "READ PASS: %d trophies readable | first non-OK=0x%08X",
+            okCount,
+            firstError
+        );
+    }
+    else
+    {
+        Notify(
+            "READ FAILED: no trophy info readable | first=0x%08X",
+            firstError
+        );
+    }
 
 end:
     for (;;)
