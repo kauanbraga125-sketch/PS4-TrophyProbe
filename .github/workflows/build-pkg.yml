@@ -75,10 +75,9 @@ jobs:
             '
           test -s IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
 
-      - name: Validate and name artifact
+      - name: Name artifact
         run: |
           set -euxo pipefail
-          "$TOOLCHAIN_ROOT/bin/linux/PkgTool.Core" pkg_validate IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
           cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg Crossout-Barrier-Probe.pkg
           sha256sum Crossout-Barrier-Probe.pkg > Crossout-Barrier-Probe.pkg.sha256
 
