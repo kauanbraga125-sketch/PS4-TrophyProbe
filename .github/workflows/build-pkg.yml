@@ -1,4 +1,4 @@
-name: Build OpenOrbis Trophy Readiness Probe PKG
+name: Build Crossout Barrier Probe PKG
 
 on:
   push:
@@ -38,30 +38,24 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends clang-18 lld-18
 
-      - name: Fetch public OpenOrbis trophy sample assets
+      - name: Fetch public icon
         run: |
           set -euxo pipefail
           rm -rf .sample-src
           git clone --depth 1 --filter=blob:none --sparse https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git .sample-src
           git -C .sample-src sparse-checkout set samples/trophies/sce_sys
-          mkdir -p sce_sys/trophy
+          mkdir -p sce_sys
           cp .sample-src/samples/trophies/sce_sys/icon0.png sce_sys/icon0.png
-          cp .sample-src/samples/trophies/sce_sys/nptitle.dat sce_sys/nptitle.dat
-          cp .sample-src/samples/trophies/sce_sys/npbind.dat sce_sys/npbind.dat
-          cp .sample-src/samples/trophies/sce_sys/trophy/trophy00.trp sce_sys/trophy/trophy00.trp
           test -s sce_sys/icon0.png
-          test "$(wc -c < sce_sys/nptitle.dat)" -eq 160
-          test "$(wc -c < sce_sys/npbind.dat)" -eq 532
-          test -s sce_sys/trophy/trophy00.trp
 
-      - name: Compile readiness probe
+      - name: Compile barrier probe
         run: |
           set -euxo pipefail
           export OO_PS4_TOOLCHAIN="$TOOLCHAIN_ROOT"
           make CCX=clang++-18 LD=ld.lld-18 eboot.bin
           test -s eboot.bin
 
-      - name: Build sample PKG
+      - name: Build PKG
         run: |
           set -euxo pipefail
           chmod -R a+rwX "$GITHUB_WORKSPACE"
@@ -75,30 +69,24 @@ jobs:
               set -euxo pipefail
               export DEBIAN_FRONTEND=noninteractive
               apt-get update -qq
-              apt-get install -y --no-install-recommends make libicu66 libssl1.1 ca-certificates python3
+              apt-get install -y --no-install-recommends make libicu66 libssl1.1 ca-certificates
               make pkg.gp4
-              python3 tools/patch_gp4.py pkg.gp4
-              grep -F "sce_sys/nptitle.dat" pkg.gp4
-              grep -F "sce_sys/npbind.dat" pkg.gp4
-              grep -F "sce_sys/trophy/trophy00.trp" pkg.gp4
-              grep -F "<dir targ_name=\"trophy\" />" pkg.gp4
               /opt/openorbis/bin/linux/PkgTool.Core pkg_build pkg.gp4 .
             '
-          test -s IV0000-BREW00094_00-TROPHIESEX000000.pkg
+          test -s IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
 
-      - name: Validate readiness probe package
+      - name: Validate and name artifact
         run: |
           set -euxo pipefail
-          python3 tools/validate_pkg_entries.py IV0000-BREW00094_00-TROPHIESEX000000.pkg
-          cp IV0000-BREW00094_00-TROPHIESEX000000.pkg OpenOrbis-Trophy-Readiness-Probe.pkg
-          sha256sum OpenOrbis-Trophy-Readiness-Probe.pkg > OpenOrbis-Trophy-Readiness-Probe.pkg.sha256
+          "$TOOLCHAIN_ROOT/bin/linux/PkgTool.Core" pkg_validate IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg
+          cp IV0000-BREW00901_00-PS4TROPHYPROBE01.pkg Crossout-Barrier-Probe.pkg
+          sha256sum Crossout-Barrier-Probe.pkg > Crossout-Barrier-Probe.pkg.sha256
 
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenOrbis-Trophy-Readiness-Probe-PS4
+          name: Crossout-Barrier-Probe-PS4
           path: |
-            OpenOrbis-Trophy-Readiness-Probe.pkg
-            OpenOrbis-Trophy-Readiness-Probe.pkg.sha256
-            pkg_entries.txt
+            Crossout-Barrier-Probe.pkg
+            Crossout-Barrier-Probe.pkg.sha256
           if-no-files-found: error
