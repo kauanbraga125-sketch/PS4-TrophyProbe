@@ -1,9 +1,9 @@
-TITLE       := OpenOrbis Trophy Readiness Probe
-VERSION     := 1.04
-TITLE_ID    := BREW00094
-CONTENT_ID  := IV0000-BREW00094_00-TROPHIESEX000000
+TITLE       := Crossout Barrier Probe
+VERSION     := 1.20
+TITLE_ID    := BREW00901
+CONTENT_ID  := IV0000-BREW00901_00-PS4TROPHYPROBE01
 
-LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceNpTrophy -lSceSysmodule
+LIBS        := -lc -lkernel -lc++
 
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 PROJDIR     := source
@@ -30,8 +30,7 @@ CDIR := macos
 endif
 
 RUNTIME_MODULES := sce_module/libc.prx sce_module/libSceFios2.prx
-TROPHY_META := sce_sys/npbind.dat sce_sys/nptitle.dat sce_sys/trophy/trophy00.trp
-PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
+PACKAGE_FILES := eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(RUNTIME_MODULES)
 
 .PHONY: all clean prepare
 all: $(CONTENT_ID).pkg
@@ -43,8 +42,8 @@ $(INTDIR)/%.o: $(PROJDIR)/%.cpp | $(INTDIR)
 	$(CCX) $(CXXFLAGS) -o $@ $<
 
 eboot.bin: $(OBJS)
-	$(LD) $(OBJS) -o $(INTDIR)/trophy-readiness-probe.elf $(LDFLAGS)
-	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/trophy-readiness-probe.elf -out=$(INTDIR)/trophy-readiness-probe.oelf --eboot "eboot.bin" --paid 0x3800000000000011
+	$(LD) $(OBJS) -o $(INTDIR)/crossout-barrier-probe.elf $(LDFLAGS)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/crossout-barrier-probe.elf -out=$(INTDIR)/crossout-barrier-probe.oelf --eboot "eboot.bin" --paid 0x3800000000000011
 
 sce_sys/about/right.sprx:
 	mkdir -p sce_sys/about
@@ -72,7 +71,7 @@ sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
 
-prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(TROPHY_META) $(RUNTIME_MODULES)
+prepare: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(RUNTIME_MODULES)
 
 pkg.gp4: prepare
 	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$(PACKAGE_FILES)"
